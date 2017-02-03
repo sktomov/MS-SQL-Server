@@ -1,5 +1,5 @@
-
---Problem 1.	Records’ Count
+ï»¿
+--Problem 1.	Recordsâ€™ Count
 --Import the database and send the total count of records to Mr. Bodrog. Make sure nothing got lost.
 select COUNT(Id) from WizzardDeposits
 
@@ -32,25 +32,25 @@ select w.DepositGroup, sum(w.DepositAmount) as TotalSum from WizzardDeposits w w
 
 --Problem 8.	 Deposit Charge
 --Create a query that selects:
---•	Deposit group 
---•	Magic wand creator
---•	Minimum deposit charge for each group 
+--â€¢	Deposit group 
+--â€¢	Magic wand creator
+--â€¢	Minimum deposit charge for each group 
 --Select the data in ascending order by MagicWandCreator and DepositGroup.
 select w.DepositGroup, w.MagicWandCreator, min(w.DepositCharge)  from WizzardDeposits w group by w.DepositGroup, w.MagicWandCreator order by w.MagicWandCreator, w.DepositGroup
 
 --Problem 9.	Age Groups
 --Write down a query that creates 7 different groups based on their age.
 --Age groups should be as follows:
---•	[0-10]
---•	[11-20]
---•	[21-30]
---•	[31-40]
---•	[41-50]
---•	[51-60]
---•	[61+]
+--â€¢	[0-10]
+--â€¢	[11-20]
+--â€¢	[21-30]
+--â€¢	[31-40]
+--â€¢	[41-50]
+--â€¢	[51-60]
+--â€¢	[61+]
 --The query should return
---•	Age groups
---•	Count of wizards in it
+--â€¢	Age groups
+--â€¢	Count of wizards in it
 select a.AgeGroup, Count(a.Age)
 from
 ( select
@@ -70,7 +70,7 @@ end AgeGroup, Age from WizzardDeposits
 select left(w.FirstName, 1) as FirstLetter from WizzardDeposits w where w.DepositGroup = 'Troll Chest' group by left(w.FirstName, 1) order by FirstLetter
 
 --Problem 11.	Average Interest 
---Mr. Bodrog is highly interested in profitability. He wants to know the average interest of all deposits groups split by whether the deposit has expired or not. But that’s not all. He wants you to select deposits with start date after 01/01/1985. Order the data descending by Deposit Group and ascending by Expiration Flag.
+--Mr. Bodrog is highly interested in profitability. He wants to know the average interest of all deposits groups split by whether the deposit has expired or not. But thatâ€™s not all. He wants you to select deposits with start date after 01/01/1985. Order the data descending by Deposit Group and ascending by Expiration Flag.
 --The output should consist of the following columns:
 select w.DepositGroup, w.IsDepositExpired, avg(w.DepositInterest) as AverageInterest  from WizzardDeposits w where w.DepositStartDate > '1985-01-01' group by w.DepositGroup, w.IsDepositExpired order by w.DepositGroup desc, IsDepositExpired
 
@@ -84,17 +84,17 @@ select sum(w.DepositAmount - w2.DepositAmount) from WizzardDeposits w join Wizza
 select @sumDif
 
 --Problem 13.	Departments Total Salaries
---That’s it! You no longer work for Mr. Bodrog. You have decided to find a proper job as an analyst in SoftUni. 
---It’s not a surprise that you will use the SoftUni database. Things get more exciting here!
+--Thatâ€™s it! You no longer work for Mr. Bodrog. You have decided to find a proper job as an analyst in SoftUni. 
+--Itâ€™s not a surprise that you will use the SoftUni database. Things get more exciting here!
 --Create a query which shows the total sum of salaries for each department. Order by DepartmentID.
 --Your query should return:	
---•	DepartmentID
+--â€¢	DepartmentID
 select e.DepartmentID, sum(e.Salary) as TotalSalary from Employees e group by e.DepartmentID order by e.DepartmentID
 
 --Problem 14.	Employees Minimum Salaries
 --Select the minimum salary from the employees for departments with ID (2,5,7) but only for those who are hired after 01/01/2000.
 --Your query should return:	
---•	DepartmentID
+--â€¢	DepartmentID
 select e.DepartmentID, min(e.Salary) as MinimumSalary from Employees e where e.DepartmentID in (2,5,7) and e.HireDate > '2000-01-01'  group by e.DepartmentID 
 
 --Problem 15.	Employees Average Salaries
@@ -112,9 +112,34 @@ select G.DepartmentID, avg(Salary) as AverageSalary  from G group by DepartmentI
 select e.DepartmentID, max(Salary) as MaxSalary  from Employees e group by e.DepartmentID having max(Salary) not between 30000 and 70000
 
 --Problem 17.	Employees Count Salaries
---Count the salaries of all employees who don’t have a manager.
+--Count the salaries of all employees who donâ€™t have a manager.
 select count(e.Salary) from Employees e where ManagerID  is null
 
+--Problem 18. *3rd Highest Salary
+--Find the third highest salary in each department if there is such.
+select Salaries.DepartmentID,Salaries.ThirdSalary from
+(
+select e.DepartmentID, max(e.Salary) as ThirdSalary, DENSE_RANK() over (partition by e.DepartmentId order by salary desc) as Rank  from Employees e group by DepartmentID, Salary) as Salaries
+where Rank = 3
+
+--Problem 19. **Salary Challenge
+--Write a query that returns:
+
+--ï‚· FirstName
+
+--ï‚· LastName
+
+--ï‚· DepartmentID
+
+--Select all employees who have salary higher than the average salary of their respective departments. Select only the
+--first 10 rows. Order by DepartmentID.
+select top(10) e.FirstName, e.LastName, e.DepartmentID  from Employees e
+where e.Salary > (
+					select avg(e2.Salary) from Employees e2
+					where e.DepartmentID = e2.DepartmentID
+					group by DepartmentID
+				 )
+order by DepartmentID
 
 
 
