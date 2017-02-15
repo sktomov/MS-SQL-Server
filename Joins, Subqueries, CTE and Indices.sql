@@ -153,3 +153,65 @@ order by p.Elevation desc
 select m.CountryCode, count(m.MountainId)  from MountainsCountries as m
 group by m.CountryCode
 having m.CountryCode in ('US', 'RU', 'BG')
+
+--Problem 14.	Countries with Rivers
+--Write a query that selects:
+--•	CountryName
+--•	RiverName
+--Find the first 5 countries with or without rivers in Africa. Sort them by CountryName in ascending order.
+select top 5 c.CountryName, r.RiverName from Countries as c
+left join CountriesRivers as cr on c.CountryCode = cr.CountryCode
+left join Rivers as r on r.Id = cr.RiverId
+where c.ContinentCode = 'AF'
+order by c.CountryName
+
+--Problem 15.	*Continents and Currencies
+--Write a query that selects:
+--•	ContinentCode
+--•	CurrencyCode
+--•	CurrencyUsage
+--Find all continents and their most used currency. Filter any currency that is used in only one country. Sort your results by ContinentCode.
+select post1.ContinentCode, post1.CurrencyCode, post1.CurrencyUsage from
+(select c.ContinentCode, c.CurrencyCode, count(*) as CurrencyUsage from Countries as c 
+group by c.ContinentCode, c.CurrencyCode) as post1
+join
+(
+select post2.ContinentCode, max(post2.CurrencyUsages) as MaxUsage  from
+(select c.ContinentCode, c.CurrencyCode, count(*) as CurrencyUsages from Countries as c 
+group by c.ContinentCode, c.CurrencyCode) as post2 group by post2.ContinentCode
+) as maxUsage on post1.ContinentCode = maxUsage.ContinentCode and maxUsage.MaxUsage = post1.CurrencyUsage
+where post1.CurrencyUsage>1
+order by post1.ContinentCode
+
+--Problem 16.	Countries without any Mountains
+--Write a query that selects CountryCode. Find all the count of all countries which don’t have a mountain.
+select (select count(c.ContinentCode) from Countries as c) -
+(select count(m2.CountryCode) from
+(select m.CountryCode from MountainsCountries as m group by m.CountryCode) as m2) as CountryCode
+
+--Problem 17.	Highest Peak and Longest River by Country
+--For each country, find the elevation of the highest peak and the length of the longest river, sorted by the highest peak elevation (from highest to lowest), then by the longest river length (from longest to smallest), then by country name (alphabetically). Display NULL when no data is available in some of the columns. Submit for evaluation the result grid with headers. Limit only the first 5 rows.
+select top 5 c.CountryName, max(p.Elevation) as HighestPeakElevation, max(r.Length) as LongestRiverLength  from Countries as c
+left join MountainsCountries as m on m.CountryCode = c.CountryCode
+left Join Peaks as p on p.MountainId = m.MountainId
+left join CountriesRivers as cr on cr.CountryCode = c.CountryCode
+left join Rivers as r on cr.RiverId = r.Id
+group by c.CountryName
+order by HighestPeakElevation desc, LongestRiverLength desc, c.CountryName
+
+--Problem 18.	* Highest Peak Name and Elevation by Country
+--For each country, find the name and elevation of the highest peak, along with its mountain. When no peaks are available in some country, display elevation 0, "(no highest peak)" as peak name and "(no mountain)" as mountain name. When multiple peaks in some country have the same elevation, display all of them. Sort the results by country name alphabetically, then by highest peak name alphabetically. Submit for evaluation the result grid with headers. Limit only the first 5 rows.
+
+select top 5 c.CountryName as Country,
+isnull(p.PeakName, '(no highest peak)') as HighestPeakName, 
+isnull(max(p.Elevation), 0) as HighestPeakElevation, 
+isnull(mnt.MountainRange, '(no mountain)') from Countries as c
+left join MountainsCountries as m on m.CountryCode = c.CountryCode
+left Join Peaks as p on p.MountainId = m.MountainId
+left join Mountains as mnt on m.MountainId = mnt.Id
+group by c.CountryName, p.PeakName, mnt.MountainRange
+order by c.CountryName, p.PeakName
+
+
+
+
