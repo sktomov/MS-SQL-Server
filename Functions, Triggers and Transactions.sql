@@ -316,3 +316,143 @@ SET Balance += 10
 WHERE Id = 1
 
 select * from NotificationEmails
+
+--PART III – Queries for Diablo Database
+
+--Create a function ufn_CashInUsersGames that sums the cash of odd rows.Rows must be ordered by cash in descending order. The function should take a game name as a parameter and return the result as table. Submit only your function in judge as Run skeleton, run queries & check DB.
+--Execute the function over the following game names, ordered exactly like: “Lily Stargazer”, “Love in a mist”.
+
+go
+create function ufn_CashInUsersGames(@gameName nvarchar(50))
+returns @result Table ( SumCash money )
+as
+begin 
+	insert into @result
+	select Sum(filtered.Cash) as SumCash from 
+		(
+		select ROW_NUMBER() over (order by Cash desc) as RowNumber, Cash from UsersGames as u
+		join Games as g on g.Id = u.GameId
+		where g.Name = @gameName
+		) as filtered
+	where filtered.RowNumber % 2 != 0
+	return
+end
+
+--Problem 21.	*Massive Shopping
+--1.	User Stamat in Safflower game wants to buy some items. He likes all items from Level 11 to 12 as well as all items from Level 19 to 21. As it is a bulk operation you have to use transactions. 
+--2.	A transaction is the operation of taking out the cash from the user in the current game as well as adding up the items. 
+--3.	Write transactions for each level range. If anything goes wrong turn back the changes inside of the transaction.
+--4.	Extract all item names in the given game sorted by name alphabetically
+--Submit your query statement as Prepare DB & run queries in Judge.
+
+begin transaction
+	declare @cashforEquipment money = (select sum(i.Price) from Items as i where i.MinLevel in (11, 12))
+	if (select u.Cash from UsersGames as u where u.UserId = 9 and  u.GameId = 87) < @cashforEquipment
+	begin
+		rollback
+	end
+	else 
+		begin
+		update UsersGames
+		set Cash = Cash - @cashforEquipment
+		where UserId = 9 and  GameId = 87
+		insert into UserGameItems (UserGameId,ItemId )
+		select 110, i.Id  from Items as i where i.MinLevel in (11,12)
+		commit
+	end
+
+
+begin transaction
+	declare @cashforEquipment2 money = (select sum(i.Price) from Items as i where i.MinLevel in (19, 20, 21))
+	if (select u.Cash from UsersGames as u where u.UserId = 9 and  u.GameId = 87) < @cashforEquipment
+	begin
+		rollback
+	end
+	else 
+		begin
+		update UsersGames
+		set Cash = Cash - @cashforEquipment
+		where UserId = 9 and  GameId = 87
+		insert into UserGameItems (UserGameId,ItemId )
+		select 110, i.Id  from Items as i where i.MinLevel in (11,12)
+		commit
+	end
+
+select i.Name from  UserGameItems as u
+join Items as i on u.ItemId = i.Id
+where u.UserGameId = 110
+
+--Problem 22.	Number of Users for Email Provider
+--Find number of users for email provider from the largest to smallest, then by Email Provider in ascending order. Submit your query statement as Prepare DB & run queries in Judge.
+select SUBSTRING(u.Email, CHARINDEX('@', u.Email) +1, len(u.Email)) as [Email Provider], COUNT(u.Email) as [Number of Users] from Users as u
+group by SUBSTRING(u.Email, CHARINDEX('@', u.Email) +1, len(u.Email))
+order by COUNT(u.Email) desc, SUBSTRING(u.Email, CHARINDEX('@', u.Email) +1, len(u.Email))
+
+--Problem 23.	All User in Games
+--Find all user in games with information about them. Display the game name, game type, username, level, cash and character name. Sort the result by level in descending order, then by username and game in alphabetical order. Submit your query statement as Prepare DB & run queries in Judge.
+select g.Name, gt.Name as [Game Type],u.Username ,ug.Level,ug.Cash, ch.Name from Games as g
+join GameTypes as gt on gt.Id = g.GameTypeId
+join UsersGames as ug on ug.GameId = g.Id
+join Users as u on u.Id = ug.UserId
+join Characters as ch on ch.Id = ug.CharacterId
+order by ug.Level desc, u.Username, g.Name
+
+--Problem 24.	Users in Games with Their Items
+--Find all users in games with their items count and items price. Display the username, game name, items count and items price. Display only user in games with items count more or equal to 10. Sort the results by items count in descending order then by price in descending order and by username in ascending order. Submit your query statement as Prepare DB & run queries in Judge.
+
+select u.Username, g.Name,count(i.Name), sum(i.Price) from Games as g
+join UsersGames as ug on ug.GameId = g.Id
+join Users as u on u.Id = ug.UserId
+left join UserGameItems as ugi on ugi.UserGameId = ug.Id
+left join Items as i on i.Id = ugi.ItemId
+group by u.Username, g.Name
+having count(i.Name) > 10
+order by count(i.Name) desc, u.Username
+
+--Problem 26.	All Items with Greater than Average Statistics
+--Find all items with statistics larger than average. Display only items that have Mind, Luck and Speed greater than average Items mind, luck and speed. Sort the results by item names in alphabetical order. Submit your query statement as Prepare DB & run queries in Judge.
+select i.Name, i.Price, i.MinLevel, stat.Strength, stat.Defence, stat.Speed, stat.Luck, stat.Mind from [dbo].[Statistics] as stat
+ join Items as i on i.StatisticId = stat.Id
+ where stat.Mind > (select avg(Mind) from [dbo].[Statistics]) and stat.Luck > (select avg(Luck) from [dbo].[Statistics]) and stat.Speed > (select avg(Speed) from [dbo].[Statistics])
+ order by i.Name
+
+-- Problem 27.	Display All Items with Information about Forbidden Game Type
+--Find all items and information whether and what forbidden game types they have. Display item name, price, min level and forbidden game type. Display all items. Sort the results by game type in descending order, then by item name in ascending order. Submit your query statement as Prepare DB & run queries in Judge.
+select i.Name as Item, i.Price, i.MinLevel, gt.Name as [Forbidden Game Type] from Items as i 
+left join GameTypeForbiddenItems as gf on gf.ItemId = i.Id
+left join GameTypes as gt on gt.Id = gf.GameTypeId
+order by gt.Name desc, i.Name
+
+--Problem 28.	Buy Items for User in Game
+--1.	User Alex is in the shop in the game “Edinburgh” and she wants to buy some items. She likes Blackguard, Bottomless Potion of Amplification, Eye of Etlich (Diablo III), Gem of Efficacious Toxin, Golden Gorget of Leoric and Hellfire Amulet. Buy the items. You should add the data in the right tables. Get the money for the items from user in game Cash.
+--2.	Select all users in the current game with their items. Display username, game name, cash and item name. Sort the result by item name.
+--Submit your query statements as Prepare DB & run queries in Judge.
+
+begin transaction
+declare @sumItems money = (select SUM(i.Price) from Items as i where i.Name in ('Blackguard', 'Bottomless Potion of Amplification', 'Eye of Etlich (Diablo III)', 'Gem of Efficacious Toxin', 'Golden Gorget of Leoric', 'Hellfire Amulet'))
+if (select u.Cash from UsersGames as u where u.UserId = 5 and u.GameId = 221) < @sumItems
+	rollback
+
+else
+		begin
+		update UsersGames
+		Set Cash = Cash - @sumItems
+		where Id = 235
+		INSERT INTO UserGameItems (ItemId, UserGameId)
+		(SELECT i.Id, 235
+		FROM Items i
+		WHERE Name IN ('Blackguard', 'Bottomless Potion of Amplification',
+		'Eye of Etlich (Diablo III)', 'Gem of Efficacious Toxin', 
+	'Golden Gorget of Leoric', 'Hellfire Amulet'))
+		commit
+	end
+
+select u.Username, g.Name, ug.Cash, i.Name as [Item Name] from UserGameItems as ugi
+join Items as i on ugi.ItemId = i.Id
+join UsersGames as ug on ug.Id = ugi.UserGameId
+join Games as g on g.Id = ug.GameId
+join Users as u on u.Id = ug.UserId
+where g.Name = 'Edinburgh'
+order by i.Name
+
+
