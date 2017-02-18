@@ -400,7 +400,7 @@ order by ug.Level desc, u.Username, g.Name
 --Problem 24.	Users in Games with Their Items
 --Find all users in games with their items count and items price. Display the username, game name, items count and items price. Display only user in games with items count more or equal to 10. Sort the results by items count in descending order then by price in descending order and by username in ascending order. Submit your query statement as Prepare DB & run queries in Judge.
 
-select u.Username, g.Name,count(i.Name), sum(i.Price) from Games as g
+select u.Username, g.Name as Game,count(i.Name), sum(i.Price) from Games as g
 join UsersGames as ug on ug.GameId = g.Id
 join Users as u on u.Id = ug.UserId
 left join UserGameItems as ugi on ugi.UserGameId = ug.Id
@@ -455,4 +455,121 @@ join Users as u on u.Id = ug.UserId
 where g.Name = 'Edinburgh'
 order by i.Name
 
+--PART IV – Queries for Geography Database
 
+--Problem 29.	Peaks and Mountains
+--Find all peaks along with their mountain sorted by elevation (from the highest to the lowest), then by peak name alphabetically. Display the peak name, mountain range name and elevation. Submit your query statement as Prepare DB & run queries in Judge.
+select p.PeakName, m.MountainRange as [Mountain], p.Elevation from Peaks as p
+ join Mountains as m on m.Id = p.MountainId
+ order by p.Elevation desc, p.PeakName
+
+-- Problem 30.	Peaks with Their Mountain, Country and Continent
+--Find all peaks along with their mountain, country and continent. When a mountain belongs to multiple countries, display them all. Sort the results by peak name alphabetically, then by country name alphabetically. Submit your query statement as Prepare DB & run queries in Judge.
+select p.PeakName, m.MountainRange as [Mountain], c.CountryName, cnt.ContinentName from Peaks as p
+ join Mountains as m on m.Id = p.MountainId
+ join MountainsCountries as mc on mc.MountainId = m.Id
+ join Countries as c on c.CountryCode = mc.CountryCode
+ join Continents as cnt on cnt.ContinentCode = c.ContinentCode
+ order by p.PeakName, c.CountryName
+
+-- Problem 31.	Rivers by Country
+--For each country in the database, display the number of rivers passing through that country and the total length of these rivers. When a country does not have any river, display 0 as rivers count and as total length. Sort the results by rivers count (from largest to smallest), then by total length (from largest to smallest), then by country alphabetically. Submit your query statement as Prepare DB & run queries in Judge.
+select c.CountryName, cnt.ContinentName, isnull(count(r.RiverName), 0) as [RiverCount], isnull(sum(r.Length), 0) as [TotalLength]  from Countries as c
+join Continents as cnt on cnt.ContinentCode = c.ContinentCode
+left join CountriesRivers as cr on cr.CountryCode = c.CountryCode
+left join Rivers as r on r.Id = cr.RiverId
+group by c.CountryName, cnt.ContinentName
+order by RiverCount desc, TotalLength desc, c.CountryName
+
+--Problem 32.	Count of Countries by Currency
+--Find the number of countries for each currency. Display three columns: currency code, currency description and number of countries. Sort the results by number of countries (from highest to lowest), then by currency description alphabetically. Name the columns exactly like in the table below. Submit your query statement as Prepare DB & run queries in Judge.
+select cr.CurrencyCode, cr.Description as [Currency], count(c.CountryCode) as [NumberOfCountries] from Currencies as cr
+left join Countries as c on c.CurrencyCode = cr.CurrencyCode
+group by cr.CurrencyCode, cr.Description
+order by NumberOfCountries desc, cr.Description
+
+--Problem 33.	Population and Area by Continent
+--For each continent, display the total area and total population of all its countries. Sort the results by population from highest to lowest. Submit your query statement as Prepare DB & run queries in Judge.
+select cnt.ContinentName, sum(AreaInSqKm) as [CountriesArea], sum(cast(c.Population as bigint)) as [CountriesPopulation] from Continents as cnt
+left join Countries as c on cnt.ContinentCode = c.ContinentCode
+group by cnt.ContinentName
+order by CountriesPopulation desc
+
+--Problem 34.	Monasteries by Country
+
+--1.	Create a table Monasteries(Id, Name, CountryCode). Use auto-increment for the primary key. Create a foreign key between the tables Monasteries and Countries.
+create table Monasteries (
+Id int not null identity primary key,
+Name nvarchar(50),
+CountryCode char(2) foreign key 
+references Countries(CountryCode)
+)
+
+--2.	Execute the following SQL script (it should pass without any errors):
+INSERT INTO Monasteries(Name, CountryCode) VALUES
+('Rila Monastery “St. Ivan of Rila”', 'BG'), 
+('Bachkovo Monastery “Virgin Mary”', 'BG'),
+('Troyan Monastery “Holy Mother''s Assumption”', 'BG'),
+('Kopan Monastery', 'NP'),
+('Thrangu Tashi Yangtse Monastery', 'NP'),
+('Shechen Tennyi Dargyeling Monastery', 'NP'),
+('Benchen Monastery', 'NP'),
+('Southern Shaolin Monastery', 'CN'),
+('Dabei Monastery', 'CN'),
+('Wa Sau Toi', 'CN'),
+('Lhunshigyia Monastery', 'CN'),
+('Rakya Monastery', 'CN'),
+('Monasteries of Meteora', 'GR'),
+('The Holy Monastery of Stavronikita', 'GR'),
+('Taung Kalat Monastery', 'MM'),
+('Pa-Auk Forest Monastery', 'MM'),
+('Taktsang Palphug Monastery', 'BT'),
+('Sümela Monastery', 'TR')
+
+--3.	Write a SQL command to add a new Boolean column IsDeleted in the Countries table (defaults to false). Note that there is no "Boolean" type in SQL server, so you should use an alternative and make sure you set the default value properly.
+alter table Countries 
+add IsDeleted bit not null default(0)
+
+--select * from Countries
+
+--4.	Write and execute a SQL command to mark as deleted all countries that have more than 3 rivers.
+update Countries
+set IsDeleted = 1
+where CountryCode in  (
+	select cr.CountryCode from Countries
+	left join CountriesRivers as cr on cr.CountryCode = Countries.CountryCode
+	group by cr.CountryCode
+	having count(cr.RiverId) >3
+	) 
+--5.	Write a query to display all monasteries along with their countries sorted by monastery name. Skip all deleted countries and their monasteries.
+select m.Name as [Monastery], c.CountryName as [Country] from Monasteries as m
+left join Countries as c on c.CountryCode = m.CountryCode
+where c.IsDeleted = 0
+order by Monastery
+
+--Problem 35.	Monasteries by Continents and Countries
+--This problem assumes that the previous problem is completed successfully without errors.
+
+--1.	Write and execute a SQL command that changes the country named "Myanmar" to its other name "Burma".
+update Countries
+set CountryName = 'Burma'
+where CountryName = 'Myanmar'
+
+--2.	Add a new monastery holding the following information: Name="Hanga Abbey", Country="Tanzania".
+insert into Monasteries (Name, CountryCode)
+select 'Hanga Abbey', c.CountryCode from Countries as c
+where c.CountryName = 'Tanzania'
+
+--3.	Add a new monastery holding the following information: Name="Myin-Tin-Daik", Country="Myanmar".
+insert into Monasteries (Name, CountryCode)
+select 'Myin-Tin-Daik', c.CountryCode from Countries as c
+where c.CountryName = 'Myanmar'
+
+--4.	Find the count of monasteries for each continent and not deleted country. Display the continent name, the country name and the count of monasteries. Include also the countries with 0 monasteries. Sort the results by monasteries count (from largest to lowest), then by country name alphabetically. Name the columns exactly like in the table below.
+
+select cnt.ContinentName, c.CountryName, isnull(count(m.Id), 0) as [MonasteriesCount] from Countries as c
+left join Continents as cnt on cnt.ContinentCode = c.ContinentCode
+left join Monasteries as m on m.CountryCode = c.CountryCode
+where c.IsDeleted = 0
+group by cnt.ContinentName, c.CountryName
+order by MonasteriesCount desc, c.CountryName
